@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lexical Analyzer</title>
+  <script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.4.0/dist/tabler-icons.min.css">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #0f1117; min-height: 100vh; color: #e2e8f0; }
+    .app { max-width: 1000px; margin: 0 auto; padding: 2.5rem 1.5rem 4rem; }
+
+    /* Header */
+    .header { text-align: center; margin-bottom: 2.5rem; }
+    .logo-badge { display: inline-flex; align-items: center; gap: 8px; background: #1e293b; border: 1px solid #334155; border-radius: 50px; padding: 8px 18px; margin-bottom: 1.25rem; font-size: 12px; font-weight: 600; letter-spacing: 0.08em; color: #64b5f6; text-transform: uppercase; }
+    .logo-badge i { font-size: 14px; }
+    .header h1 { font-size: 2.25rem; font-weight: 700; letter-spacing: -0.03em; color: #f1f5f9; line-height: 1.2; }
+    .header h1 span { background: linear-gradient(135deg, #42a5f5, #7c3aed); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .header p { font-size: 15px; color: #64748b; margin-top: 0.6rem; }
+
+    /* Cards */
+    .card { background: #1e293b; border: 1px solid #2d3748; border-radius: 16px; padding: 1.5rem; margin-bottom: 1.25rem; }
+    .card-label { font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: #475569; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 6px; }
+    .card-label i { font-size: 14px; color: #64748b; }
+
+    /* Textarea */
+    textarea { width: 100%; height: 200px; background: #0f1117; border: 1px solid #2d3748; border-radius: 10px; color: #e2e8f0; font-family: 'Fira Code', 'Cascadia Code', 'Courier New', monospace; font-size: 13.5px; line-height: 1.65; padding: 14px 16px; resize: vertical; transition: border-color 0.2s; tab-size: 2; }
+    textarea:focus { outline: none; border-color: #42a5f5; box-shadow: 0 0 0 3px rgba(66,165,245,0.12); }
+    textarea::placeholder { color: #334155; }
+
+    /* Toolbar */
+    .toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 1rem; }
+    .spacer { flex: 1; }
+    .file-label { display: inline-flex; align-items: center; gap: 7px; background: #0f1117; border: 1px solid #2d3748; border-radius: 8px; padding: 9px 14px; font-size: 13px; color: #94a3b8; cursor: pointer; transition: border-color 0.2s, color 0.2s; }
+    .file-label:hover { border-color: #42a5f5; color: #e2e8f0; }
+    .file-label i { font-size: 15px; }
+    input[type="file"] { display: none; }
+
+    /* Buttons */
+    .btn { display: inline-flex; align-items: center; gap: 7px; border: none; border-radius: 8px; padding: 9px 18px; font-size: 13.5px; font-weight: 600; cursor: pointer; transition: all 0.18s; letter-spacing: 0.01em; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-primary { background: linear-gradient(135deg, #2563eb, #7c3aed); color: #fff; }
+    .btn-primary:not(:disabled):hover { opacity: 0.88; transform: translateY(-1px); box-shadow: 0 4px 18px rgba(37,99,235,0.35); }
+    .btn-primary:not(:disabled):active { transform: translateY(0); opacity: 1; }
+    .btn-ghost { background: #1e293b; border: 1px solid #2d3748; color: #94a3b8; }
+    .btn-ghost:hover { border-color: #475569; color: #e2e8f0; }
+    .btn i { font-size: 16px; }
+
+    /* Error */
+    .error-box { display: none; align-items: center; gap: 8px; background: #2d1515; border: 1px solid #7f1d1d; border-radius: 10px; padding: 12px 16px; font-size: 13.5px; color: #fca5a5; margin-bottom: 1.25rem; }
+    .error-box i { font-size: 16px; color: #f87171; flex-shrink: 0; }
+
+    /* Stats */
+    .stat-row { display: none; gap: 10px; margin-bottom: 1.25rem; flex-wrap: wrap; }
+    .stat { flex: 1; min-width: 100px; background: #162032; border: 1px solid #1e3a5f; border-radius: 10px; padding: 12px 16px; text-align: center; }
+    .stat-num { font-size: 22px; font-weight: 700; color: #64b5f6; }
+    .stat-label { font-size: 11px; color: #475569; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 500; }
+    .stat-errors .stat-num { color: #fca5a5; }
+
+    /* Filter bar */
+    .filter-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 1rem; }
+    .filter-btn { background: #0f1117; border: 1px solid #2d3748; border-radius: 20px; padding: 4px 12px; font-size: 12px; font-weight: 600; cursor: pointer; color: #64748b; transition: all 0.15s; font-family: monospace; }
+    .filter-btn:hover { border-color: #475569; color: #e2e8f0; }
+    .filter-btn.active { border-color: #42a5f5; color: #42a5f5; background: rgba(66,165,245,0.08); }
+
+    /* Results */
+    .results-card { display: none; }
+    .results-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; flex-wrap: wrap; gap: 8px; }
+    .results-title { font-size: 14px; font-weight: 600; color: #94a3b8; display: flex; align-items: center; gap: 8px; }
+    .results-title i { font-size: 16px; }
+    .results-actions { display: flex; gap: 8px; align-items: center; }
+    .badge { background: #162032; border: 1px solid #1e3a5f; border-radius: 50px; padding: 3px 12px; font-size: 12px; color: #64b5f6; font-weight: 600; }
+
+    /* Table */
+    .table-wrap { overflow-x: auto; border-radius: 12px; border: 1px solid #2d3748; }
+    table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+    thead tr { background: #162032; }
+    th { padding: 12px 16px; text-align: left; font-size: 11px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: #64b5f6; border-bottom: 1px solid #2d3748; white-space: nowrap; }
+    td { padding: 11px 16px; color: #cbd5e1; border-bottom: 1px solid #1a2535; }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover { background: #162032; }
+
+    /* Token type badges */
+    .token-type { display: inline-flex; align-items: center; border-radius: 6px; padding: 2px 9px; font-size: 12px; font-weight: 600; font-family: monospace; letter-spacing: 0.03em; white-space: nowrap; }
+    .tt-keyword   { background: #1e1040; color: #a78bfa; border: 1px solid #3b1f80; }
+    .tt-id        { background: #0d2638; color: #64b5f6; border: 1px solid #1e4a6e; }
+    .tt-literal   { background: #0f2a1e; color: #6ee7b7; border: 1px solid #1a4d37; }
+    .tt-op        { background: #2a1a0e; color: #fcd34d; border: 1px solid #5a3a10; }
+    .tt-delim     { background: #1e1e1e; color: #94a3b8; border: 1px solid #334155; }
+    .tt-error     { background: #2d1515; color: #fca5a5; border: 1px solid #7f1d1d; }
+    .tt-default   { background: #1a1f2e; color: #94a3b8; border: 1px solid #2d3748; }
+
+    .lexeme-code { font-family: 'Fira Code', monospace; color: #e2e8f0; font-size: 13px; }
+    .line-col    { color: #475569; font-size: 12px; font-family: monospace; }
+    .row-num     { color: #334155; font-size: 12px; font-family: monospace; }
+
+    /* Empty state */
+    .empty-state { text-align: center; padding: 3.5rem 2rem; color: #334155; }
+    .empty-state i { font-size: 40px; color: #2d3748; margin-bottom: 1rem; display: block; }
+    .empty-state p { font-size: 14px; }
+
+    /* Token legend */
+    .legend { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 1rem; }
+    .legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: #64748b; }
+    .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+    /* Export button */
+    .btn-sm { padding: 6px 12px; font-size: 12px; }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <div class="header">
+    <div class="logo-badge"><i class="ti ti-code-dots" aria-hidden="true"></i> Lexical Analyzer</div>
+    <h1>Tokenize your <span>source code</span></h1>
+    <p>Supports Python, C/C++, Java, JavaScript and more — paste code or upload a file</p>
+  </div>
+
+  <div class="card">
+    <div class="card-label"><i class="ti ti-terminal-2" aria-hidden="true"></i> Source input</div>
+    <textarea id="codeInput" placeholder="// Paste your source code here…
+// Example:
+int main() {
+  int x = 42;
+  if (x > 0) {
+    return x;
+  }
+}"></textarea>
+    <div class="toolbar">
+      <label class="file-label" for="fileInput" title="Supports .txt .py .cpp .c .java .js .docx">
+        <i class="ti ti-upload" aria-hidden="true"></i> Upload file
+        <span style="font-size:11px;color:#475569;margin-left:4px">.txt .py .cpp .c .java .js .docx</span>
+      </label>
+      <input type="file" id="fileInput" accept=".txt,.py,.cpp,.c,.java,.js,.ts,.docx">
+      <div class="spacer"></div>
+      <button class="btn btn-ghost" id="clearBtn"><i class="ti ti-trash" aria-hidden="true"></i> Clear</button>
+      <button class="btn btn-primary" id="convertBtn"><i class="ti ti-player-play" aria-hidden="true"></i> Tokenize</button>
+    </div>
+  </div>
+
+  <div id="errorDisplay" class="error-box">
+    <i class="ti ti-alert-circle" aria-hidden="true"></i>
+    <span id="errorText"></span>
+  </div>
+
+  <div id="statsRow" class="stat-row">
+    <div class="stat"><div class="stat-num" id="statTotal">0</div><div class="stat-label">Total tokens</div></div>
+    <div class="stat"><div class="stat-num" id="statKeywords">0</div><div class="stat-label">Keywords</div></div>
+    <div class="stat"><div class="stat-num" id="statIdents">0</div><div class="stat-label">Identifiers</div></div>
+    <div class="stat"><div class="stat-num" id="statLines">0</div><div class="stat-label">Lines</div></div>
+    <div class="stat stat-errors"><div class="stat-num" id="statErrors">0</div><div class="stat-label">Errors</div></div>
+  </div>
+
+  <div class="card results-card" id="resultsCard">
+    <div class="results-header">
+      <div class="results-title"><i class="ti ti-table" aria-hidden="true"></i> Token output</div>
+      <div class="results-actions">
+        <button class="btn btn-ghost btn-sm" id="exportBtn" style="display:none"><i class="ti ti-download" aria-hidden="true"></i> Export CSV</button>
+        <span class="badge" id="tokenBadge"></span>
+      </div>
+    </div>
+
+    <!-- Filter buttons -->
+    <div class="filter-bar" id="filterBar" style="display:none">
+      <button class="filter-btn active" data-filter="ALL">All</button>
+      <button class="filter-btn" data-filter="KEYWORD">KEYWORD</button>
+      <button class="filter-btn" data-filter="IDENTIFIER">IDENTIFIER</button>
+      <button class="filter-btn" data-filter="NUMBER">NUMBER</button>
+      <button class="filter-btn" data-filter="STRING">STRING</button>
+      <button class="filter-btn" data-filter="OPERATOR">OPERATOR</button>
+      <button class="filter-btn" data-filter="DELIMITER">DELIMITER</button>
+      <button class="filter-btn" data-filter="ERROR">ERROR</button>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Lexeme</th>
+            <th>Token type</th>
+            <th>Line</th>
+            <th>Column</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+<script>
+  const codeInput    = document.getElementById('codeInput');
+  const fileInput    = document.getElementById('fileInput');
+  const convertBtn   = document.getElementById('convertBtn');
+  const clearBtn     = document.getElementById('clearBtn');
+  const tableBody    = document.getElementById('tableBody');
+  const errorDisplay = document.getElementById('errorDisplay');
+  const errorText    = document.getElementById('errorText');
+  const tokenBadge   = document.getElementById('tokenBadge');
+  const statsRow     = document.getElementById('statsRow');
+  const statTotal    = document.getElementById('statTotal');
+  const statErrors   = document.getElementById('statErrors');
+  const statLines    = document.getElementById('statLines');
+  const statKeywords = document.getElementById('statKeywords');
+  const statIdents   = document.getElementById('statIdents');
+  const resultsCard  = document.getElementById('resultsCard');
+  const filterBar    = document.getElementById('filterBar');
+  const exportBtn    = document.getElementById('exportBtn');
+
+  let allTokens = [];
+  let activeFilter = 'ALL';
+  let requestSeq = 0; // race-guard: only render the latest request's result
+
+  function showError(msg) {
+    errorText.textContent = msg;
+    errorDisplay.style.display = 'flex';
+  }
+  function clearError() {
+    errorDisplay.style.display = 'none';
+    errorText.textContent = '';
+  }
+
+  function tokenTypeClass(type) {
+    const t = (type || '').toUpperCase();
+    if (t === 'KEYWORD')    return 'tt-keyword';
+    if (t === 'IDENTIFIER') return 'tt-id';
+    if (['NUMBER','STRING','CHAR'].includes(t)) return 'tt-literal';
+    if (t === 'OPERATOR')   return 'tt-op';
+    if (t === 'DELIMITER')  return 'tt-delim';
+    if (t === 'ERROR')      return 'tt-error';
+    return 'tt-default';
+  }
+
+  function renderTable(tokens) {
+    if (!tokens || tokens.length === 0) {
+      tableBody.innerHTML = '<tr><td colspan="5"><div class="empty-state"><i class="ti ti-scan" aria-hidden="true"></i><p>No tokens found.</p></div></td></tr>';
+      return;
+    }
+    tableBody.innerHTML = tokens.map((t, i) => {
+      const cls = tokenTypeClass(t.type);
+      const lex = String(t.lexeme).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      return `<tr>
+        <td><span class="row-num">${i + 1}</span></td>
+        <td><span class="lexeme-code">${lex}</span></td>
+        <td><span class="token-type ${cls}">${t.type}</span></td>
+        <td><span class="line-col">${t.line}</span></td>
+        <td><span class="line-col">${t.column}</span></td>
+      </tr>`;
+    }).join('');
+  }
+
+  function renderTokens(tokens) {
+    allTokens = tokens || [];
+    resultsCard.style.display = 'block';
+
+    if (!allTokens.length) {
+      tableBody.innerHTML = '<tr><td colspan="5"><div class="empty-state"><i class="ti ti-scan" aria-hidden="true"></i><p>No tokens found.</p></div></td></tr>';
+      statsRow.style.display = 'none';
+      filterBar.style.display = 'none';
+      exportBtn.style.display = 'none';
+      tokenBadge.textContent = '';
+      return;
+    }
+
+    const errCount     = allTokens.filter(t => t.type === 'ERROR').length;
+    const keyCount     = allTokens.filter(t => t.type === 'KEYWORD').length;
+    const identCount   = allTokens.filter(t => t.type === 'IDENTIFIER').length;
+    const maxLine      = Math.max(...allTokens.map(t => t.line || 0));
+
+    statTotal.textContent    = allTokens.length;
+    statErrors.textContent   = errCount;
+    statLines.textContent    = maxLine;
+    statKeywords.textContent = keyCount;
+    statIdents.textContent   = identCount;
+    statsRow.style.display   = 'flex';
+    tokenBadge.textContent   = allTokens.length + ' tokens';
+    filterBar.style.display  = 'flex';
+    exportBtn.style.display  = 'inline-flex';
+
+    applyFilter(activeFilter);
+  }
+
+  function applyFilter(filter) {
+    activeFilter = filter;
+    document.querySelectorAll('.filter-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.filter === filter);
+    });
+    const filtered = filter === 'ALL' ? allTokens : allTokens.filter(t => t.type === filter);
+    renderTable(filtered);
+    tokenBadge.textContent = filtered.length + (filter !== 'ALL' ? ` ${filter}` : '') + ' tokens';
+  }
+
+  filterBar.addEventListener('click', e => {
+    const btn = e.target.closest('.filter-btn');
+    if (btn) applyFilter(btn.dataset.filter);
+  });
+
+  // CSV export
+  exportBtn.onclick = () => {
+    const rows = [['#','Lexeme','Token Type','Line','Column']];
+    allTokens.forEach((t, i) => {
+      const lex = String(t.lexeme).replace(/"/g, '""');
+      rows.push([i + 1, `"${lex}"`, t.type, t.line, t.column]);
+    });
+    const csv = rows.map(r => r.join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'tokens.csv';
+    a.click();
+  };
+
+  async function processCode(code) {
+    clearError();
+    if (!code.trim()) { showError('Please enter some code to tokenize.'); return; }
+    convertBtn.disabled = true;
+    convertBtn.innerHTML = '<i class="ti ti-loader" aria-hidden="true"></i> Analyzing…';
+    const myReq = ++requestSeq; // mark this request as the latest
+    try {
+      const res  = await fetch('/tokenize?_=' + Date.now(), {
+        method: 'POST',
+        cache: 'no-store',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code })
+      });
+      const data = await res.json();
+      if (myReq !== requestSeq) return; // a newer request already started, drop this stale one
+      if (data.error) { showError(data.error); return; }
+      renderTokens(data.tokens);
+    } catch(e) {
+      if (myReq === requestSeq) showError('Network error: ' + e.message);
+    } finally {
+      convertBtn.disabled = false;
+      convertBtn.innerHTML = '<i class="ti ti-player-play" aria-hidden="true"></i> Tokenize';
+    }
+  }
+
+  convertBtn.onclick = () => processCode(codeInput.value);
+
+  // Ensure selecting the SAME file twice in a row still triggers `change`
+  fileInput.addEventListener('click', () => { fileInput.value = ''; });
+
+  fileInput.onchange = (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  
+
+  const name = file.name.toLowerCase();
+
+  // --- .DOCX: Extract with mammoth.js (FIXED FUNCTION NAME) ---
+  if (name.endsWith('.docx')) {
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      try {
+        const arrayBuffer = ev.target.result;
+        // ✅ CORRECT: Use extractRawText (not convertToText)
+        const result = await mammoth.extractRawText({ arrayBuffer: arrayBuffer });
+        const text = result.value;
+        codeInput.value = text;          // Fills textarea
+        processCode(text);               // Auto-converts
+      } catch (err) {
+        showError('Failed to extract .docx: ' + err.message);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  }
+  // --- .txt, .py, .cpp: Read as text ---
+  else {
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      codeInput.value = ev.target.result;
+      processCode(codeInput.value);
+    };
+    reader.readAsText(file);
+  }
+  fileInput.value = '';
+};
+
+  clearBtn.onclick = () => {
+    codeInput.value = '';
+    allTokens = [];
+    activeFilter = 'ALL';
+    clearError();
+    statsRow.style.display   = 'none';
+    resultsCard.style.display = 'none';
+    filterBar.style.display  = 'none';
+    exportBtn.style.display  = 'none';
+    tableBody.innerHTML      = '';
+  };
+</script>
+</body>
+</html>
